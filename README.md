@@ -3,7 +3,7 @@
 Compelling analysis about BTP italian bonds in the sovereign debt crisis of 2011.
 ![piigs](https://github.com/giuseppedipoce/Italian-BTP-analysis-in-PIIGS-scenario/assets/114066138/85dc00a7-df95-48ee-9eb0-6542c8ab8c13)
 
-##The project in a nutshell:
+## The project in a nutshell:
 
 In this repository you will find a full Bayesian analysis about Italy prices and yields situation of BTP during sovereign debt crisis of 2011.
 The project has been developed for the second part of Statistical Methods for Data Science course with professor Luca Tardella, a fully Bayesian course.
@@ -18,4 +18,5 @@ In this repo you will find a t-Student alternative approach to avoid the problem
 Don't esitate to get in touch for clarifications and collaboration about it.
 
 ## Used technologies
-![image](https://github.com/giuseppedipoce/Italian-BTP-analysis-in-PIIGS-scenario/assets/114066138/38797d4b-5de8-4f27-98d4-d21ee90349ac)
+![RStudio](https://img.shields.io/badge/RStudio-4285F4?style=for-the-badge&logo=rstudio&logoColor=white)
+![R](https://img.shields.io/badge/r-%23276DC3.svg?style=for-the-badge&logo=r&logoColor=white)
