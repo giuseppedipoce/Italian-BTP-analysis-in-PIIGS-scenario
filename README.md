@@ -27,7 +27,7 @@ where residuals $z_t$ are normally distribuited.
 
 
 
-<img src="https://github.com/giuseppedipoce/Italian-BTP-analysis-in-PIIGS-scenario/assets/114066138/035a2d97-2e9d-44b9-b3ab-3dd92e27ade3" width=50% height=50% align="right">)
+<img src="https://github.com/giuseppedipoce/Italian-BTP-analysis-in-PIIGS-scenario/assets/114066138/035a2d97-2e9d-44b9-b3ab-3dd92e27ade3" width=50% height=50% align="center">
 
 As you can notice from the qq-plot above tails of $z_t$ are far from a normal distribution.
 Here we will apply a t-Student distribution to model residuals with a given number od degree fo freedoms.
