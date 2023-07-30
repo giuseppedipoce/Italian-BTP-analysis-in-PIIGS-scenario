@@ -14,10 +14,10 @@ The project is divided in sections, analyzing in the specific just the italian s
 - Frequentist brief comparison and forecasting.
 
 ## *Normals* vs *t-Student*
-The aim of this work from a bayesian point of view is to highlight the fact that *GARCH* models are not suitable to model residuals that do not follow a standard normal distribuition.
-In this repo you will find a t-Student alternative approach to avoid this problem.
-The main idea is that in a GARCH model volatility of current time $t$ ($y_t$) is modeled as:
-$y_t=c+\epsilon_t=c+\sqrt{\sigma_t^2} z_t, \quad z_t \sim N(0,1)$
+The aim of this work from a bayesian point of view is to highlight the fact that *GARCH* models are not suitable to model residuals that do not follow a standard normal distribuition.\
+In this repo you will find a t-Student alternative approach to avoid this problem.\
+The main idea is that in a GARCH model volatility of current time $t$ ($y_t$) is modeled as:\
+$y_t=c+\epsilon_t=c+\sqrt{\sigma_t^2} z_t, \quad z_t \sim N(0,1)$\
 where residuals $z_t$ are normally distribuited.
 
 
