@@ -28,8 +28,8 @@ where residuals $z_t$ are normally distribuited.
 
 
 
-As you can notice from the qq-plot above tails of $z_t$ are far from a normal distribution.
-Here we will apply a t-Student distribution to model residuals with a given number od degree fo freedoms.
+As you can notice from the qq-plot above tails of $z_t$ are far from a normal distribution.\
+Here we will apply a t-Student distribution to model residuals with a given number of degrees fo freedom.
 
 Don't esitate to get in touch for clarifications and collaboration about it.
 - Giuseppe Di Poce ([Linkedin](https://www.linkedin.com/in/giuseppe-di-poce-82a4ba14a/) - [Github](https://github.com/))
