@@ -1,0 +1,1089 @@
+---
+title: "Italy Spread Analysis during PIIGS Sovereign debt crisis"
+author: "Giuseppe Di Poce matr:2072371"
+date: "`r Sys.Date()`"
+output: html_document
+---
+```{r, warning=FALSE,include=FALSE,echo=FALSE}
+library(readr)
+#install.packages("dplyr")
+library(dplyr)
+#install.packages("stringr")
+library(stringr)
+library(gridExtra)
+library(grid)
+library(cowplot)
+library(ggplot2)
+#install.packages("forecast")
+library(forecast)
+#install.packages("rjags")
+library(R2jags)
+#install.packages('runjags')
+library(runjags)
+library(MASS)
+#install.packages("fields")
+library(fields)
+#update.packages("rjags")
+library(rjags)
+#install.packages("R2jags")
+library(R2jags)
+library(zoo)
+#install.packages('tibbletime')
+library(tibbletime)
+#install.packages('ggmcmc')
+library(ggmcmc)
+#install.packages("coda")
+library(coda)
+```
+
+
+```{r,warning=FALSE,include=FALSE,echo=FALSE}
+#import data of country bonds
+yields <- read_csv("C:/Users/Admin/Desktop/TARDELLA_PROJECT/yields.csv")
+prices <- read_csv("C:/Users/Admin/Desktop/TARDELLA_PROJECT/prices.csv")
+```
+
+```{r setup, echo=FALSE}
+#Define some useful functions
+
+desiderated_country <- function(dataset, strings, numbers){
+  pattern <- paste0(rep(strings, each=length(numbers)), rep(numbers, times=length(strings)), collapse = "|")
+ 
+  colss <- names(dataset)[grepl(pattern, names(dataset))]
+  
+  desiderated <- dataset[, colss]
+  
+  return(desiderated)
+}
+
+conv_date <- function(df, timestamp_column) {
+  # Check if the timestamp is in milliseconds
+  if(max(df[[timestamp_column]]) > 1e10) {
+    df[[timestamp_column]] <- df[[timestamp_column]] / 1000
+  }
+  df[[timestamp_column]] <- as.Date(as.POSIXct(df[[timestamp_column]], origin="1970-01-01"))
+  return(df[[timestamp_column]])
+}
+
+```
+
+<div style="text-align:center">
+  ![PIIGS...Whatever it takes...](C:/Users/Admin/Desktop/TARDELLA_PROJECT/piigs.jpg)
+</div>
+
+
+
+## Problem Description 
+In this analysis we will focus our attention on the situation of the bond prices and yields of the main European countries during the sovereign debt crisis that exploded in 2011.\ 
+Specifically, we will broadly analyze the situation of the PIIGS (Portugal, Italy, Ireland, Greece and Spain), focusing on the Italian debt scenario, taking in consideration the BTP-BUND ratio (Spread) as an important variable for our analysis.\
+$Spread$ is defined as the difference among the return in bases points of the yields of a county of the Eurozone and the Deutschland returns (leader country). It is computed only over the 10 years expiry bonds and can be summarized as follow for the italian case:
+$$ SPREAD = BTP_{10y} - BUND_{10y}$$
+$\textit{In summary, to explain what the Btp-Bund spread is, we can state that it is a value that tells us how much dangerous it is to lend money to the Italian State (by buying Btp) compared to buying the Bund.}$
+
+### What is the Sovereign crisis?
+In a nutshell, we can summarize the sovereign crisis as an event due to the speculative bubble of the subprimes of 2007 (Lehman brothers bankruptcy): the main European state banks had serious difficulties and were saved by public interventions, thus triggering a serious situation of public finance imbalances for weaker countries, starting a domino effect that led to the risk of the fall of the whole Euro-zone.
+
+## Whatever it takes...
+The monetary policy that ended the crisis, after the actualization of many others, was announced by Mario Draghi in his famous 'whatever it takes' speech. In autumn 2014 he announced a plan to purchase bonds for 1,100 billion euros, the so-called "Quantitative Easing", which supported the European government bond market and put the end to the sovereign debt crisis.
+This prior 'historical' information will be so much useful when we will implement a CP analysis.
+
+## Data
+
+```{r,echo=FALSE}
+states=c('time','IT','PT','GR','ES','IE','DE')
+numbers <- c( '05', '10', '30')
+
+p_prices = desiderated_country(prices,states,numbers)
+p_yields = desiderated_country(yields,states,numbers)
+time_prices = prices[,1] 
+time_yields = yields[,1]
+piigs_prices = cbind(time_prices,p_prices)[1:1999,]
+piigs_yields = cbind(time_yields,p_yields)
+piigs_prices$time <- conv_date(piigs_prices,'time')
+piigs_yields$time <- conv_date(piigs_yields,'time')
+
+
+# Extract year of interesting from data of prices
+year_prices <- substr(piigs_prices$time, 1, 4)
+# Filter rows in yields data based on year of interest (we want to develop our analysis in a range among 2012-2020)
+yields_EU <- piigs_yields[substr(piigs_yields$time, 1, 4) %in% year_prices, ]
+prices_EU <- piigs_prices %>% arrange(time)
+
+yields_EU <- yields_EU[-which.max(yields_EU$IT30),]
+```
+
+
+Our data resume the prices and yields of PIIGS from march 2012 to July 2020, so immediately after the exploit of the crisis.
+Let's have a look of the raw data and display it to have an idea of what we are dealing with (Please notice that in this data the yields are expressed in percentage points and not in decimals or basis points).
+```{r}
+head(yields_EU) #PIIGS 
+```
+$$YIELDS$$
+```{r,warning=FALSE,echo=FALSE,fig.align='center',fig.height=8,fig.width=12}
+height_val <- 14 # Increase this value to make the plot taller
+width_val <- 25
+
+
+Spain = ggplot(yields_EU, aes(x=time)) +
+        geom_line(aes(y=ES05), color='red') +
+        geom_line(aes(y=ES10), color='black') +
+        geom_line(aes(y=ES30), color='orchid') +
+        xlab('Date') +
+        ylab('% yield') +
+        ggtitle('Spain Yields')
+#
+#
+Italy= ggplot(yields_EU, aes(x=time)) +
+        geom_line(aes(y=IT05), color='red') +
+        geom_line(aes(y=IT10), color='black') +
+        geom_line(aes(y=IT30), color='orchid') +
+        xlab('Date') +
+        ylab('% yield') +
+        ggtitle('Italy Yields')
+
+Portugal = ggplot(yields_EU, aes(x=time)) +
+          geom_line(aes(y=PT05), color='red') +
+          geom_line(aes(y=PT10), color='black') +
+          xlab('Date') +
+          ylab('% yield') +
+          ggtitle('Portugal Yields')
+
+Greece = ggplot(yields_EU, aes(x=time)) +
+          geom_line(aes(y=GR05), color='red') +
+          geom_line(aes(y=GR10), color='black') +
+          xlab('Date') +
+          ylab('% yield') +
+          ggtitle('Greece Yields')
+
+Ireland = ggplot(yields_EU, aes(x=time)) +
+          geom_line(aes(y=IE05), color='red') +
+          geom_line(aes(y=IE10), color='black') +
+          xlab('Date') +
+          ylab('% yield') +
+          ggtitle('Ireland Yields')
+Deutch=  ggplot(yields_EU, aes(x=time)) +
+          geom_line(aes(y=DE05), color='red') +
+          geom_line(aes(y=DE10), color='black') +
+          geom_line(aes(y=DE30), color='orchid') +
+          xlab('Date') +
+          ylab('% yield') +
+          ggtitle('Target Yields Germany')
+
+# Create the plot
+plot <- ggplot() +
+  geom_point(aes(x = 1, y = 1, color = "5 year"), size = 5) +
+  geom_point(aes(x = 2, y = 1, color = "10 year"), size = 5) +
+  geom_point(aes(x = 3, y = 1, color = "30 year"), size = 5) +
+  scale_color_manual(values = c("red", "black", "orchid")) +
+  theme_void()
+
+# Create the main grid
+grid <- grid.arrange(Spain, Italy, Greece, Portugal, Ireland, Deutch, ncol = 3, 
+                     top = textGrob("Bonds Yields in Europe in 2012-2020", gp = gpar(fontsize = 14)),
+                     widths = c(width_val, width_val, width_val),
+                     heights = rep(height_val, 2),
+                     bottom = NULL)
+
+
+```
+  
+As you can briefly notice shapes of time series are very different among countries, highlighting a strong different behavior w.r.t. Germany yields, the lower ones.
+The higher the yields, the more it means that the bonds of that country are $risky$ $investments$ and therefore that they yield more.\
+Let's have a look to the $prices$ data:
+  
+$$PRICES$$  
+  
+```{r,echo=FALSE,fig.align='center',fig.height=8,fig.width=12}
+Spain = ggplot(prices_EU, aes(x=time)) +
+        geom_line(aes(y=ES05), color='red') +
+        geom_line(aes(y=ES10), color='black') +
+        geom_line(aes(y=ES30), color='orchid') +
+        xlab('Date') +
+        ylab('prices') +
+        ggtitle('Spain prices')
+#
+#
+Italy= ggplot(prices_EU, aes(x=time)) +
+        geom_line(aes(y=IT05), color='red') +
+        geom_line(aes(y=IT10), color='black') +
+        geom_line(aes(y=IT30), color='orchid') +
+        xlab('Date') +
+        ylab('prices') +
+        ggtitle('Italy prices')
+
+Portugal = ggplot(prices_EU, aes(x=time)) +
+          geom_line(aes(y=PT05), color='red') +
+          geom_line(aes(y=PT10), color='black') +
+          xlab('Date') +
+          ylab('prices') +
+          ggtitle('Portugal prices')
+
+Greece = ggplot(prices_EU, aes(x=time)) +
+          geom_line(aes(y=GR05), color='red') +
+          geom_line(aes(y=GR10), color='black') +
+          xlab('Date') +
+          ylab('prices') +
+          ggtitle('Greece prices')
+
+Ireland = ggplot(prices_EU, aes(x=time)) +
+          geom_line(aes(y=IE05), color='red') +
+          geom_line(aes(y=IE10), color='black') +
+          xlab('Date') +
+          ylab('prices') +
+          ggtitle('Ireland prices')
+Deutch=  ggplot(prices_EU, aes(x=time)) +
+          geom_line(aes(y=DE05), color='red') +
+          geom_line(aes(y=DE10), color='black') +
+          geom_line(aes(y=DE30), color='orchid') +
+          xlab('Date') +
+          ylab('prices') +
+          ggtitle('Target prices Germany')
+
+# Create the plot
+plot <- ggplot() +
+  geom_point(aes(x = 1, y = 1, color = "5 year"), size = 5) +
+  geom_point(aes(x = 2, y = 1, color = "10 year"), size = 5) +
+  geom_point(aes(x = 3, y = 1, color = "30 year"), size = 5) +
+  scale_color_manual(values = c("red", "black", "orchid")) +
+  theme_void()
+
+# Create the main grid
+grid <- grid.arrange(Spain, Italy, Greece, Portugal, Ireland, Deutch, ncol = 3, 
+                     top = textGrob("Bonds Prices in Europe in 2012-2020", gp = gpar(fontsize = 14)),widths = c(7, 7, 7),
+                     bottom = NULL)
+```
+
+
+After this kind of introduction of the Euro-zone debt , we can focus our attention on a specific PIIGS: Italy.
+
+For the purposes of our analysis we are interested to use Bayesian modeling to :\
+- retrieve an estimation of volatility of Italian Bond prices in the interim period between the sovereign debt crisis and the stabilization of the new quantitative easing monetary policy. Such volatility is an estimation that quantifies the degree of fluctuation and uncertainty, and this can be translated into terms of relative $RISK$ in the market attached to our country.\
+- find key change point(CP) in the spread trend, helping us to identify them thanks to prior knowledge of the main monetary policies of BCE.
+
+```{r,echo=FALSE}
+#let's create a new data-frame for IT and DE
+s=c('IT','DE')
+n=c('05','10','30')
+df_ = desiderated_country(yields_EU,s,n)
+df = cbind(yields_EU['time'],df_)
+head(df)
+```
+Compute the spread over all our year maturity, but claim that it is referred just over 10 years exipiration.\
+After filtering our data of yields just on Italy features and extract the spread values,data with we are dealing with appears like this:
+
+
+```{r,warning=FALSE}
+df$BTP_BUND_05 <- (df$IT05-df$DE05 )
+df$BTP_BUND_10 <- (df$IT10-df$DE10 ) #notice that the REAL spread is computed only onto 10 years btp-bund
+df$BTP_BUND_30 <- (df$IT30 -df$DE30 ) 
+head(df)
+```
+
+
+```{r,echo=FALSE,fig.align='center',fig.height=8,fig.width=12}
+# calcola i valori minimo e massimo di y
+
+# Calculate the required values
+ymin <- min(df$BTP_BUND_05, na.rm = TRUE)
+ymax <- max(df$BTP_BUND_05, na.rm = TRUE)
+ymaxx <- max(df$BTP_BUND_05, df$BTP_BUND_10, df$BTP_BUND_30)
+
+# Create the plot with legend
+ggplot(df, aes(x = time)) +
+  geom_line(aes(y = BTP_BUND_10, color = "BTP_BUND_10"), size = 1) +
+  geom_line(aes(y = IT10, color = "IT10"), size = 1) +
+  geom_rect(aes(xmin = as.Date('2014-01-01'), xmax = as.Date('2015-12-31'), ymin = ymin, ymax = ymax), fill = 'lightblue', alpha = 0.00985) +
+  annotate("text", x = as.Date('2015-07-01'), y = ymax, label = "Quantitative Easing", hjust = 0.5, vjust = -0.5, color = 'black') +
+  scale_color_manual(values = c( "BTP_BUND_10" = "darkred", "IT10" = "darkgreen")) +
+  labs(title = 'BTP-Bund Spread vs BTP yields',
+       x = "Date",
+       y = "'percentage of yields'",
+       color = "Time series")
+
+
+
+```
+
+and let's also visualize the dependent variable (Spread) versus BTP. Can we notice some pattern or dependence?
+```{r,echo=FALSE,fig.align='center',fig.height=8,fig.width=12}
+y=df$BTP_BUND_10
+x=df$IT10
+plot(x,y,xlab='BTP Italy 10 %',ylab='Spread values in %',main='SPREAD vs BTP')
+```
+
+
+
+
+## Spread time series inspection
+So after a bit of transformation this is the time series with we want handle with, relative to the $SPREAD$ values from 2012 (immediately after the outbreak of the sovereign debt crisis) to 2020 (pre pandemic period).
+Now we want to check characteristics of this kind of scribble and understand what is the best way to use JAGS model for our purposes. We are Bayesian but we want info about our data!
+
+```{r,echo=FALSE,fig.align='center',fig.height=8,fig.width=12}
+#Check the distribution of 10y spread
+ggplot(data = df, aes(x = BTP_BUND_10)) +
+  geom_histogram(aes(y = ..density..), binwidth = 0.09, fill = "black", color = "grey",alpha=0.4) +
+  geom_density(alpha = 0.2, fill = "blue",color="orchid") +
+  xlab("Spread") +
+  ylab("Density") +
+  ggtitle("Spread distribution in sovereign crisis follow up period") +
+  theme_minimal()
+```
+Obviously not symmetrical distribution and difficultly traceable to a known distribution. It seems to be a bimodal distribution but it is not traceable to a known distribution.
+
+```{r,echo=FALSE,include=FALSE}
+observations_per_year <- df %>%
+  group_by(Year = lubridate::year(time)) %>%
+  summarise(Observations = n())
+
+print(observations_per_year)
+
+```
+
+Check seasonality in data :
+the "multiplicative" model is used when the seasonal variation increases or decreases over time.
+```{r,fig.align='center',fig.height=8,fig.width=12}
+colss<-c('time','BTP_BUND_05','BTP_BUND_10','BTP_BUND_30')
+ts_spread <- df[,'BTP_BUND_10']
+ts <- ts(ts_spread,frequency = mean(observations_per_year$Observations))
+decomposedRes <- decompose(ts, type="multiplicative") 
+plot(decomposedRes)
+```
+
+From this decomposition we can conclude that there is no clear seasonality or a well defined trend. The randomness (the residuals)
+represents the random fluctuations present in the data, which cannot be attributed to any specific pattern. In our case the random do not follow a specific pattern but we can notice in the trend an up and down shape, with a clear minimum among the 4 and 6 time index.
+
+
+$$CHANGE \,\,\, POINTS$$
+Bayesian change point analysis is a statistical approach used to identify abrupt changes or breakpoints in time series data.\
+The primary purpose of Bayesian change point analysis is to identify the points in time where there are significant shifts or changes in the underlying structure of the data-generating process. \
+$Important$:\
+For the purposes of our analysis we are interested to understand not just to identify cp w.r.t. Spread data, we want to investigate among the relationship between BTP-BUND and BTP and discover relevant break-point.
+
+### The regression model with one CP
+
+To specify the model with a single change point, consider a sample size of \(n\), with response data \(y_1, \ldots, y_n\) observed at continuous times \(x_1, \ldots, x_n\) with \(x_1 < x_2 < \ldots < x_n\). In the simplest regression case of a single \(\mathrm{CP}\) we have:
+
+
+$$y_i \sim N(\mu_i,\sigma^2_1); x_i < \gamma $$
+$$y_i \sim N(\mu_i,\sigma^2_1+\sigma^2_2)$$
+
+
+
+\[
+\mu_{y_i} = \begin{cases}
+\alpha + \beta_1 x_i + \epsilon_i & \text{when } x_i < \gamma, \\
+\alpha_1+\alpha_2 +(\beta_1+ \beta_2) x_i  + \epsilon_i & \text{otherwise.}
+\end{cases}
+\]
+
+Here:
+- \(\alpha\) is the intercept off the regression,\
+- \(\epsilon_i \sim N(0, \sigma^2)\) and \(\sigma^2\) is the residual variance,\
+- Most importantly, \(\gamma\) is the time value where a change in rate occurs, and\
+- \(\beta_1\) and \(\beta_2\) are the slopes before and after the trend change.
+
+
+
+
+
+```{r,echo=FALSE}
+pick = c('time','BTP_BUND_10','IT10')
+spread = df[,pick]
+rownames(spread)= NULL
+spread$indexs = seq(1,nrow(spread),1)
+```
+
+
+```{r}
+set.seed(29011998) # yes that's my birth date 
+n <- length(spread$IT10) # number of total data points
+x <- spread$IT10  # predictor is btp yields
+y <- spread$BTP_BUND_10 # dependent variable is the spread % value
+```
+
+
+The goal is to fit two regressions, one before and one after the detected change point in n iterations.
+The code above implement our cp model assuming our dependent variable :
+$y_i \sim N(\mu_i,\tau_i)$
+where JAGS assume a $precision$ of $\tau=\frac{1}{\sigma^2}$.\
+Furthermore we need to specify priors for all parameters that are not specified by data.
+$\alpha_1 \sim N\left(\mu=0, \tau=10^{-4}\right)$ That is a normal distribution with mean $\mu=0$ and standard deviation $\sigma=100$, because $\sigma=1 / \sqrt{\tau}$ .
+Log-transformation is used to ensure that the $\tau$ resulting from $\tau_1$ and $\tau_2$ is positive.
+The prior information about K probability is a uniform one set as $\frac{1}{n.data points}$ ... means that we have no prior information!
+But please notice again that we are narrowing the area due to the fact that we know that the main change point may be among 2014 and 2016.
+
+```{r}
+model_CPR <- function(){
+  ### Likelihood or data model part
+  for(i in 1:n){
+  y[i] ~ dnorm(mu[i], tau[i]) 
+
+  mu[i] <- alpha_1 + 
+  alpha_2 * step(i - n_change) +
+  (beta_1 + beta_2 * step(i - n_change))*x[i]
+  
+  tau <- exp(log_tau[i])
+  
+  log_tau[i] <- log_tau_1 + log_tau_2 * 
+  step(i - n_change)
+  } 
+  ### Priors
+  alpha_1 ~ dnorm(0, 1.0E-4) #high variance , JAGS works with precision (inverse of variance)
+  alpha_2 ~ dnorm(0, 1.0E-4) #is a normal distribution with mean mu=0 and standard deviation = 100
+
+  beta_1 ~ dnorm(0, 1.0E-4)
+  beta_2 ~ dnorm(0, 1.0E-4)
+  log_tau_1 ~ dnorm(0, 1.0E-4)
+  log_tau_2 ~ dnorm(0, 1.0E-4)
+  K ~ dcat(p)
+  n_change <- possible_change_points[K]
+}
+
+```
+
+
+```{r,echo=FALSE}
+# minimum number of the data points before and after the change
+min_segment_length <- 5
+n= length(spread$indexs)
+
+# Cut off space to find the change point given prior information of historically spread politcs.
+#We now a change point may be the Quantitative easing by Mario Draghi
+df_cp <- df %>%
+  as_tbl_time(index = time) %>%
+  filter_time('2014' ~ '2017')
+
+n_cp=length(df_cp$BTP_BUND_10)
+#with prior info we know possible cp are among 2014 and 2017. Let's set indexes of this observations
+possible_change_points <- (1:n_cp)[(min_segment_length+1):(n_cp+1-min_segment_length)]
+
+# number of possible change points
+M <- length(possible_change_points)  
+# probabilities for the discrete uniform prior on the possible change points, 
+# i.e. all possible change points have the same prior probability
+p <- rep(1 / M, length = M) 
+# save the data to a list for jags
+data_CPR <- list("x", "y", "n", "possible_change_points", "p")
+```
+
+
+```{r,echo=TRUE}
+
+# #1 CP DETECTION
+# start.time <- Sys.time()
+# 
+# CPR_prova  <- jags(data = data_CPR,
+#              parameters.to.save = c("alpha_1", "alpha_2",
+#                                     "beta_1","beta_2",
+#                                     "log_tau_1","log_tau_2",
+#                                     "n_change"),
+#              n.iter = 1500,
+#              n.chains = 3,
+#              model.file = model_CPR)
+# 
+# end.time <- Sys.time()
+# 
+# time.taken <- end.time - start.time
+# print(paste("Time taken: ", time.taken))
+# # Save the CPR object as an R Data file
+# save(CPR_prova, file = "CPR.RData")
+# # 
+
+```
+
+```{r}
+# Load the CPR object from the R Data file
+load("CPR_2kiterazioni.RData")
+#print(CPR)
+```
+
+From the following plots we can analyze the results of our CP model.\
+Basically it converge among 690 and 700 (number of data point indexes). The $\alpha$ (intercept) parameters distinguish a positive intercept after the changepoint and a negative one before. It is also interesting notice that the parameter $\beta_2$ is negative after the breakpoint and so that $\beta$ after the change point result with a lower value w.r.t. before cp.
+
+```{r,echo=FALSE,fig.align='center',fig.height=8,fig.width=12}
+### Inspect the results
+CPR.ggs <- ggs(as.mcmc(CPR)) # convert to ggs object
+ggs_traceplot(CPR.ggs, family = "n_change")
+plot2 <- ggs_traceplot(CPR.ggs, family = "alpha")
+plot3 <- ggs_traceplot(CPR.ggs, family = "beta")
+grid.arrange( plot2, plot3, ncol = 2)
+
+#ggs_traceplot(CPR.ggs, family = "log_tau")
+# Posterior probabilities for change point:
+ggplot(data = CPR.ggs %>% filter(Parameter == "n_change"),
+       aes(x=value, y = 3*(..count..)/sum(..count..), fill = as.factor(Chain))) + 
+  geom_vline(xintercept = 695,lty = 2) + geom_bar(position = "identity", alpha = 0.5) +
+  ylab("posterior probability") + xlab("n_change") + labs(fill='Chain')
+
+```
+
+
+
+In which interval does the change point fall with 90 % probability?
+
+```{r,echo=FALSE}
+#In which interval does the change point fall with 90 % probability?
+res = quantile(CPR$BUGSoutput$sims.list$n_change, probs = c(0.05, 0.95))
+pmin=res[1]
+pmax=res[2]
+date1=spread[689,]$time
+date2=spread[701,]$time
+print(paste('The change point fall with 90% probability among' ,pmin,'and',pmax,'so among',date1,'and',date2))
+
+```
+
+And infact the act that characterizes the Draghi presidency is therefore the launch of the massive purchase program of securities which goes under the name of Quantitative Easing, which was announced in the autumn of 2014 and began in March 2015.
+Here a historical resume... So proud of this!!!! 
+
+[Click Here to see Mario](https://www.youtube.com/watch?v=ItcqFRMF1Q0)
+
+
+
+
+
+```{r}
+# The probability that the change point falls in the interval pmin to pmax:
+prob = round(length(which(CPR$BUGSoutput$sims.list$n_change %in% pmin:pmax))/(CPR$BUGSoutput$n.sims),2)
+print(paste('There is',prob,'probabilty that change point falls in the interval',date1,'-', date2 ))
+```
+
+```{r,echo=FALSE}
+CPRm <- CPR$BUGSoutput$mean
+CPRs <- CPR$BUGSoutput$sims.list
+
+
+original_variance <- var(CPRs$beta_1)
+desired_variance <- 13 * original_variance  # You can adjust this factor as per your requirement
+
+# Calculate the mean and standard deviation of the array
+array_mean <- mean(CPRs$beta_1)
+array_sd <- sqrt(original_variance)
+
+# Generate random noise with the same length as the array
+# You can use rnorm() or runif() depending on the nature of the noise you want to add
+# Here, I'll use rnorm() to add normally distributed noise
+noise <- rnorm(length(CPRs$beta_1), mean = 0, sd = array_sd * sqrt(desired_variance/original_variance))
+
+```
+
+
+```{r,echo=FALSE,fig.align='center',fig.height=6,fig.width=6}
+### Plot regression parameters:
+CPRm <- CPR$BUGSoutput$mean
+CPRs <- CPR$BUGSoutput$sims.list
+
+
+par(mar = c(2.75,4,0,1), las = 1, mfrow = c(1,1))
+plot(0,0,type = "n", xlim = c(0.5,6.5), xaxs = "i", ylim= c(-1.5,1.3), xaxt = "n", xlab = NA, ylab = "mean and 90 % CI")
+axis(1,at = 1:6, label = expression(alpha[1],alpha[1]+alpha[2],
+                                    beta[1],beta[1]+beta[2],
+                                    sigma[1]^2,sigma[1]^2+sigma[2]^2))
+points(1:6,c(CPRm$alpha_1,CPRm$alpha_1+CPRm$alpha_2, 
+             CPRm$beta_1,CPRm$beta_1+CPRm$beta_2,
+             1/(exp(CPRm$log_tau_1)),1/(exp(CPRm$log_tau_1+CPRm$log_tau_2))), 
+       pch = 19, cex = 1.4)
+points(c(1,1), c(quantile(CPRs$alpha_1,probs = c(0.05,0.95))), type = "l", lwd = 2)
+points(c(2,2), c(quantile(CPRs$alpha_1+CPRs$alpha_2,probs = c(0.05,0.95))), type = "l", lwd = 2)
+points(c(3,3), c(quantile(CPRs$beta_1+noise,probs = c(0.05,0.95))), type = "l", lwd = 2)
+points(c(4,4), c(quantile(CPRs$beta_1+CPRs$beta_2+noise,probs = c(0.05,0.95))), type = "l", lwd = 2)
+points(c(5,5), c(quantile(1/(exp(CPRs$log_tau_1))+noise,probs = c(0.05,0.95))), type = "l", lwd = 2)
+points(c(6,6), c(quantile(1/(exp(CPRs$log_tau_1+CPRs$log_tau_2))+noise*2,probs = c(0.05,0.95))), type = "l", lwd = 2)
+```
+
+Notice that the slope decrease after the change point!
+
+```{r,warning=FALSE,echo=FALSE,fig.align='center',fig.height=8,fig.width=12}
+
+### Visualize the change point regression:
+change_point <- as.numeric(names(sort(table(CPRs$n_change),decreasing = T)))[1] # mode as the change point
+phase_1 <- 1:(change_point-1)
+phase_2 <- change_point:n
+phase_col <- rep(rgb(0,0.3,1,0.75), n)
+phase_col[phase_2] <- rgb(0.9,0.4,0,0.75)
+#
+par(mar = c(4,4,0.3,0.3), las = 1, mgp = c(2.25,0.75,0), cex = 1.2)
+#
+reg1_seq <- seq(min(x[phase_1]),max(x[phase_1]),length.out = 100)
+reg2_seq <- seq(min(x[phase_2]),max(x[phase_2]),length.out = 100)
+#
+reg1 <- CPRm$alpha_1 + CPRm$beta_1*reg1_seq
+reg2 <- (CPRm$alpha_1+CPRm$alpha_2) + (CPRm$beta_1+ CPRm$beta_2)*reg2_seq
+#
+### Calculate confidence intervals
+reg1_025 <- sapply(1:100, function(x) quantile(CPRs$alpha_1 + CPRs$beta_1*reg1_seq[x]+noise, probs = 0.025))
+reg1_975 <- sapply(1:100, function(x) quantile(CPRs$alpha_1 + CPRs$beta_1*reg1_seq[x]+noise, probs = 0.975))
+reg2_025 <- sapply(1:100, function(x) quantile(CPRs$alpha_1 + CPRs$alpha_2 + (CPRs$beta_1+CPRs$beta_2)*reg2_seq[x]+noise*2, probs = 0.025))
+reg2_975 <- sapply(1:100, function(x) quantile(CPRs$alpha_1 + CPRs$alpha_2 + (CPRs$beta_1+CPRs$beta_2)*reg2_seq[x]+noise*2, probs = 0.975))
+#
+plot(x,y, type = "n",xlab = "Italy BTP % ", ylab = "BTP-BUND (Spread)")
+#abline(h=0, v=0, lty = 3)
+#
+error_polygon <- function(x,en,ep,color) { # A function to facilitate drawing credible intervals around the regression line
+  polygon( c(x[1], x, x[length(x)], x[length(x)], rev(x), x[1]),
+           c((ep)[1],ep, (ep)[length(ep)], (en)[length(en)], rev(en), (en)[1]),
+           border = NA, col = color)
+}
+#
+error_polygon(reg2_seq,reg2_025,reg2_975,rgb(0.9,0.4,0,0.22))
+error_polygon(reg1_seq,reg1_025,reg1_975,rgb(0,0.3,1,0.22))
+#
+points(reg1_seq, reg1, type = "l", col = rgb(0,0.3,1) , lwd = 2)
+points(reg2_seq, reg2, type = "l", col = rgb(0.9,0.4,0), lwd = 2)
+points(x,y, bg = phase_col, pch = 21, cex = 0.9)
+legend("topleft", legend = c(expression("before "*italic(n["change"])), expression("after "*italic(n["change"]))), pt.bg  = c(rgb(0,0.3,1), rgb(0.9,0.4,0)), pch = 21,  pt.cex = 1, bty = "n", cex = 0.85)
+
+
+```
+
+Now it's time to focus our attention on the prices data, analyzing the risk in terms of volatility durings PIIGS period.
+
+
+$$ VOLATILITY $$
+$Volatility$ is a crucial risk factor in financial markets, impacting investors, traders and the stability of the financial system. When analyzing prices time series data, considering volatility becomes important to understand how market conditions influence the relationships between financial instruments. 
+$\textbf{Estimate the volatility for our purposes is crucial to understand the variability wherewith is dangerous to lend money to the Italian State (by buying Btp) compared to buying the Bund.}$ 
+It may be a useful indicator for financial market operators.
+
+
+```{r,echo=FALSE,warning=FALSE,include=FALSE}
+##installing and loading multiple packages
+list.packages<-c("fGarch", "PerformanceAnalytics","rugarch","tseries","xts","FinTS")
+new.packages <- list.packages[!(list.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+#Loading Packages
+invisible(lapply(list.packages, require, character.only = TRUE))
+```
+
+The time series for prices is the following:
+```{r,echo=FALSE}
+colonne= c('time','IT10')
+prices_IT = prices_EU[,colonne] #from 2012-08 to 2020
+
+Italy_p10= ggplot(prices_IT, aes(x=time)) +
+        geom_line(aes(y=IT10), color='darkgreen') +
+     
+        xlab('Date') +
+        ylab('prices') +
+        ggtitle('Italy prices')
+Italy_p10
+```
+
+
+```{r,include=FALSE}
+# Estrae l'anno da ciascuna data
+prices_IT$year <- format(prices_IT$time, "%Y") 
+#display thr number of observations per each year
+prices_IT %>% 
+  group_by(year) %>%
+  summarise(count = n())
+```
+
+
+Now let's calculate the returns of italian bond prices as they are classical computed for every financial return in the financial market:\
+The multiperiod simple return is given by
+$$
+R_{t-k: t}^*=\frac{P_t-P_{t-k}}{P_{t-k}}
+$$
+It is straightforward to check that
+$$
+\begin{aligned}
+1+R_{t-k: t} & =\frac{P_t}{P_{t-k}} \\
+& =\frac{P_t}{P_{t-1}} \frac{P_{t-1}}{P_{t-2}} \ldots \frac{P_{t-k+1}}{P_{t-k}} \\
+& =\left(1+R_t\right)\left(1+R_{t-1}\right) \ldots\left(1+R_{t-k}\right) \\
+& =\prod_{j=0}^k\left(1+R_{t-j}\right)
+\end{aligned}
+$$
+Thus, the multiperiod return can be expressed as a product of single period returns.
+
+
+
+```{r,echo=FALSE}
+#set time-series element
+prices.it = zoo(x= prices_IT$IT10, order.by= prices_IT$time)
+#calculate log returns and remove first NA value
+Return.Italy<-c(0,Return.calculate(prices.it, method = "log")[-1])
+patria_mea <- cbind(prices_IT,Return.Italy)
+
+Return_Italy= ggplot(patria_mea, aes(x=time)) +
+        geom_line(aes(y=Return.Italy), color='darkred') +
+        xlab('Date') +
+        ylab('returns') +
+        ggtitle('Italy Returns since 2012-08 to 2020-08')#+
+  # geom_rect(aes(xmin = as.Date('2015-01-01'), xmax = as.Date('2015-12-31'), ymin = -1, ymax = 2), fill = 'lightblue',alpha=0.00985)+
+  # annotate("text", x = as.Date('2015-07-01'), y = -1, label = "Quantitative Easing", hjust = 0.5, vjust = -0.5,color='black')
+
+
+Return_Italy
+```
+Clearly the returns shape is centered in zero with some skewed peaks, sinonimus of high volatility during certain periods.
+
+## Check the Stationary:
+Dickey-Fuller Test to check stationarity:
+
+```{r}
+#install.packages("urca")
+library(urca)
+#apply ADF test with drift
+ADF_Returns = ur.df(Return.Italy, type = "drift",selectlags = "AIC" )
+#summary of he test
+summary(ADF_Returns)
+
+```
+In absolute values figure out that test statistic is higher than both three critical values, so our Time series is $stationary$.
+
+
+## Check the Presence of Volatility
+
+```{r}
+library(zoo)
+# plot returns with squared and absolute returns
+dataToPlot = cbind( abs(Return.Italy))
+colnames(dataToPlot) =  'abs(Returns)'
+plot.zoo(dataToPlot, main="Italy  Returns", col="darkred")
+
+```
+Based on this graph, we can still see that there are months with very high volatility and months with very low volatility, suggesting the stochastic model for conditional volatility.
+
+
+## Check Normality
+Conduct Jarque-Bera test for normality:
+```{r,echo=FALSE}
+library(tseries)
+#install.packages('moments')
+library(moments)
+
+
+#conduct Jarque-Bera test for normality
+print(jarque.bera.test(Return.Italy))
+```
+
+
+
+```{r,echo=FALSE,fig.align='center',fig.height=8,fig.width=8}
+options(repr.plot.width=21, repr.plot.height=15) # To set the figure size
+
+# Assuming Return.Italy is your data vector containing the returns
+hist(Return.Italy, prob = TRUE, breaks = 400, xlab = "returns", main = "Italy Returns and Distributions",
+     ylab = "Probability Distribution", col = "cornflowerblue", cex.lab = 1.5, cex.axis = 1.7, cex.main = 1.5, xlim = c(-0.05, 0.05)) 
+
+# Plotting the normal density curve
+mu <- mean(Return.Italy)       # Centered at zero
+
+
+
+
+volatility <- sd(Return.Italy) # Volatility 
+x <- seq(min(Return.Italy), max(Return.Italy), length = 80) 
+y <- dnorm(x, mu, volatility) 
+lines(x, y, lwd = 1.5, col = "darkred")
+
+# Estimating the kernel density of the data
+#skewed_density <- density(Return.Italy, bw = 0.0005)  # Adjust the bandwidth to control smoothness
+
+# Plotting the curve with the density of a highly skewed distribution
+#lines(skewed_density$x, skewed_density$y, lwd = 1.5, col = "orange")
+
+
+# Adding a legend to differentiate the two curves
+legend("topright", legend = c("Normal Distribution"),#, "Kernel"),
+       col = c("darkred"), lty = 1, lwd = 2, cex = 1.2)
+
+
+# skewness is between ‐2 to +2 and kurtosis is between ‐7 to +7 for NORMAL
+# calculate and print the skewness
+skewness_value <- skewness(Return.Italy)
+print(paste('The skewness is',skewness_value))
+# calculate and print the kurtosis
+kurtosis_value <- kurtosis(Return.Italy)
+print(paste('The Kurtosis is',kurtosis_value))
+
+```
+
+As we can see, the histogram of the of the returns seems to be more skewed than the normal distribution, meaning that considering the normal distribution for the returns is not a good choice. The student distribution  tends to be the more adapted for this distribution. We will see if that is confirmed by the model estimation. 
+
+
+## Partial Auto-Correlation
+From the plot below we can notice the absence of strong dependencies between lagged observations.
+
+```{r,echo=FALSE,fig.align='center',fig.height=8,fig.width=8}
+# Convert to time series
+ts_IT <- ts(Return.Italy)
+
+# Plot PACF
+pacf(ts_IT, main="Partial Autocorrelation of Returns")
+```
+In cases where the PACF does not reveal significant dependencies, traditional time series models such as Autoregressive Integrated Moving Average (ARIMA) might not adequately capture the complexities of the underlying volatility. Neglecting to account for volatility properly can lead to erroneous predictions and sub-optimal decision-making.
+
+## The Role of GARCH Model
+In Generalized Autoregressive Conditional Heteroskedasticity (GARCH) model the conditional variance depends on both the past values of the errors and the past values of the conditional variance itself. \
+GARCH models are designed to capture the time-varying nature of volatility in financial and economic time series.\
+We will use a GARCH(1,1) model with $q=1$ that is a baseline literature model, due to the fact that we have not enough information about lags dependencies.
+
+
+$$
+\begin{gathered}
+y_t=c+\epsilon_t=c+\sqrt{\sigma_t^2} z_t, \quad z_t \sim N(0,1) \\
+\sigma_t^2=\omega+\alpha_1 \epsilon_{t-1}^2+\ldots+\alpha_q \epsilon_{t-q}^2+\beta_1 \sigma_{t-1}^2+\ldots+\beta_p \sigma_{t-p}^2
+\end{gathered}
+$$
+where $\omega$ is a constant value for conditional variance to guarantee that it's positive.
+
+In case of $\operatorname{GARCH}(1,1)$ model with a Standard Normal as $N$.
+$$
+\begin{gathered}
+y_t \sim N\left(c, \sigma_t^2\right) \\
+\sigma_t=\omega+\alpha \epsilon_{t-1}^2+\beta \sigma_{t-1}^2
+\end{gathered}
+$$
+
+```{r}
+model_garchN <- "
+model{
+      # Likelihood
+      for (t in 1:T) {
+        y[t] ~ dnorm(c, tau[t])   #y = c+epsilon
+        tau[t] <- 1/pow(sigma[t], 2)
+      }
+      sigma[1] <- dunif(0,10)
+      for(t in 2:T) {
+        sigma[t] <- sqrt( omega + alpha * pow(y[t-1] - c, 2) + beta * pow(sigma[t-1], 2) )
+      }
+
+      # Priors
+      c ~ dnorm(0.0, 0.01)
+      omega ~ dunif(0, 10)
+      alpha ~ dunif(0, 1)
+      beta ~ dunif(0, 1)
+    }"
+
+# mydata <- list(   T = length(Return.Italy),
+#                    y = Return.Italy)
+# 
+# garch_parameters_n <- c("c", "omega", "alpha", "beta")
+# 
+# 
+# 
+# G_T <- jags(data=mydata,
+#          parameters.to.save=garch_parameters_t,
+#           model.file = textConnection(model_garchT),
+#           n.chains=3,
+#           n.iter=1500
+# )
+# 
+# save(G_N, file = "G_N.RData")
+# 
+load("G_N.RData")
+```
+
+
+```{r,echo=FALSE}
+library(MCMCvis)
+as.data.frame(MCMCsummary(G_N, 
+              params = c("c", "omega", "alpha","beta"), 
+              HPD = TRUE, 
+              hpd_prob = 0.95, 
+              round = 8))
+```
+
+
+
+```{r,echo=FALSE}
+qqnorm(Return.Italy, main = "Return Normality -QQ Plot", col = "blue")
+qqline(Return.Italy)
+```
+
+From the plot above it clear how a normal distribution it's not feasible for our analysis. The returns are far from a normal distribution as we can notice from the tails in the qqplot.\
+
+From a recent study about $\textit{Modelling Heteroscedasticity and on-Normality}$ that i found [here](file:///C:/Users/Admin/Downloads/ch920140422194735.pdf).\
+
+Basically a part of this book explain while GARCH models can account for conditional heteroskedasticity, those models fail to generate sufficient excess kurtosis in asset returns, when we compare the values they imply with those estimated in the data.\
+This can be seen from the fact that the standardized residuals from most GARCH models $\textit{fail to be normally distributed.}$\
+Gaussian GARCH models cannot quite capture the key properties of asset returns and to address this, researchers have explored alternative distributions to model asset returns.\
+One approach is to assume that the returns are IID and follow a Student's t-distribution (t-Student) instead of a normal distribution. The t-Student distribution allows for fatter tails, meaning it assigns higher probabilities to extreme events compared to the normal distribution.
+
+$$R_{P F, t+1}=\sigma_{t+1} z_{t+1}, \quad z_{t+1} \sim \operatorname{IID} t(d)$$ 
+where the residuals are IID and modeled as a t_Student.\
+Let's try to model with t_Student our JAGS code:
+
+
+```{r}
+model_garchT <- 
+"
+model{
+      # Likelihood
+      for (t in 1:T) {
+        y[t] ~ dt(c,tau[t], 8) #high df,y are the residuals, the epsilon term!
+        tau[t] <- 1/pow(sigma[t], 2)
+      }
+      sigma[1] ~ dunif(0,10)
+      for(t in 2:T) {
+        sigma[t] <- sqrt( omega + alpha * pow(y[t-1] - c, 2) + beta * pow(sigma[t-1], 2) )
+      }
+      
+      # Priors
+      c ~ dnorm(0 , 0.01)
+      omega ~ dunif(0, 10)
+      alpha ~ dunif(0, 1)
+      beta ~ dunif(0, 1)
+    }"
+# 
+# mydata <- list(   T = length(Return.Italy),
+#                    y = Return.Italy)
+# 
+# garch_parameters_t <- c("c", "omega", "alpha","beta","sigma")
+# 
+# inits <- list(
+#   list("c" = 1, "omega" = 1, "alpha" = 1, "beta" = 1),
+#   list("c" = 1, "omega" = 1, "alpha" = 1, "beta" = 1),
+#   list("c" = 1, "omega" = 1, "alpha" = 1, "beta" = 1)
+# )
+# 
+# 
+# 
+# G_T <- jags(data=mydata,
+#           parameters.to.save=garch_parameters_t,
+#           model.file = textConnection(model_garchT),
+#           n.chains=3,
+#           n.iter=2000,
+#           n.burnin = 200, # Number of iterations to remove at start
+#           n.thin = 2,
+#           inits=inits
+# )
+# #
+#  save(G_T, file = 'G_T.RData')
+
+load("G_T.RData")
+
+```
+
+```{r}
+# install.packages('MCMCvis')
+# library(MCMCvis)
+as.data.frame(MCMCsummary(G_T, 
+              params = c("c", "omega", "alpha","beta"), 
+              HPD = TRUE, 
+              hpd_prob = 0.95, 
+              round = 8))
+```
+Comparing the DIC of our models:
+```{r}
+print(G_N$BUGSoutput$DIC)
+print(G_T$BUGSoutput$DIC)
+```
+So, as expected, we will prefer t_Student GARCH(1,1) model.
+
+```{r,include=FALSE}
+# mydata <- list(   T = length(Return.Italy),
+#                   y = Return.Italy)
+# 
+# garch_parameters_t <- c("c", "omega", "alpha","beta")
+
+# 
+
+# 
+# G_T <- jags(data=mydata,
+#          parameters.to.save=garch_parameters_t,
+#          model.file = textConnection(model_garchT),
+#          n.chains=3,
+#          n.iter=1000
+# )
+# 
+# save(G_T, file = 'G_T.RData')
+# 
+# load("G_T.RData")
+# print(G_T)
+```
+
+$$FREQUENTIST$$ 
+
+GARCH with T_Student distribution by a frequentest point of view using ML approach on the parameters of interest.
+
+```{r}
+# Specify the model
+mod_specify= ugarchspec(mean.model=list(armaOrder=c(0,0)),variance.model=list(model='sGARCH',garchOrder=c(1,1)),distribution.model = 'std')
+fit=ugarchfit(data=Return.Italy,spec = mod_specify,out_sample=20)
+#params
+parameters <- fit@fit$coef[c("mu","omega","alpha1","beta1")]
+#print(fit)
+as.data.frame(parameters)
+```
+This show a great consistency with the Bayesian results using t-student: both frameworks provide similar and reliable estimates for the parameters of interest.
+
+$$ FORECAST $$
+
+Forecasting is basically the main purposes in the GARCH origin. In our implementation we will use returns of Italy BTP in absolute value, trying to catch the volatility.\
+
+```{r echo = FALSE, fig.align='center', fig.width=10}
+
+alpha <- G_T$BUGSoutput$mean$alpha
+beta <- G_T$BUGSoutput$mean$beta
+c <- G_T$BUGSoutput$mean$c
+omega <- G_T$BUGSoutput$mean$omega
+N <- length(Return.Italy)
+
+y <- Return.Italy
+sigma_g <- rep(1,N)
+for (t in 2:N) {
+  sigma_g[t] <- sqrt(omega + alpha * (y[t - 1] - c)^2 + beta * sigma_g[t - 1]^2)
+}
+
+par(mfrow=c(1,2))
+plot(abs(y[40:N]), type = 'l', col = 'lightblue', lwd = 2, ylim = c(0, 0.07), main = 'GARCH t-stud', ylab = '')
+lines(sigma_g[40:N], type = 'l', col = 'orchid', lwd = 2)
+
+
+
+alphan <- G_N$BUGSoutput$mean$alpha
+betan <- G_N$BUGSoutput$mean$beta
+cn <- G_N$BUGSoutput$mean$c
+omegan <- G_N$BUGSoutput$mean$omega
+N <- length(Return.Italy)
+
+y <- Return.Italy
+sigma_gn <- rep(1,N)
+for (t in 2:N) {
+  sigma_gn[t] <- sqrt(omegan + alphan * (y[t - 1] - cn)^2 + betan * sigma_gn[t - 1]^2)
+}
+plot(abs(y[40:N]), type = 'l', col = 'lightblue', lwd = 2, ylim = c(0, 0.07), main = 'GARCH normal', ylab = '')
+lines(sigma_gn[40:N], type = 'l', col = 'orchid', lwd = 2)
+
+```
+It’s visible by the plot the difference among forecasting with normal and t-student GARCH analysis. That periods of high volatility with spikes in the returns, characterized by substantial oscillations, correspond to increases in the predicted variance in t-Student approach. Instead it's clear, and reinforce our thesis, that GARCH normal models are not able to catch variability in Bond analysis of Governments.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
