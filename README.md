@@ -11,9 +11,9 @@ The project has been developed for the second part of Statistical Methods for Da
 The project is divided in sections, analyzing in the specific just the italian scenario:
 - BTP-BUND (SPREAD) analysis with *CHANGE POINT* bayesian models, to understand in what measure Quantitative Easing policy impact the spread;
 - Prices Returns *VOLATILITY* analysis witth GARCH moldes;
-- Frequentist brief comparison and forecating.
+- Frequentist brief comparison and forecasting.
 
-## Comments about results
+## Normals vs t-Student
 The aim of this work from a bayesian point of view is to highlight the fact that *GARCH* models are not suitable to model residuals that do not follow a standard normal distribuition.
 In this repo you will find a t-Student alternative approach to avoid this problem.
 The main idea is that in a GARCH model volatility of current time $t$ ($y_t$) is modeled as:
