@@ -4,8 +4,6 @@ In this repository you will find a compelling analysis about BTP italian bonds i
 There are Rmd code and HTML report attached.
 Data are taken from Kaggle and are in the form of time series since 2012 to 2020.
 
-<img src="https://github.com/giuseppedipoce/Italian-BTP-analysis-in-PIIGS-scenario/assets/114066138/85dc00a7-df95-48ee-9eb0-6542c8ab8c13" width=55% height=55% align="right">
-
 ## The project in a nutshell:
 
 In this repository you will find a full Bayesian analysis about Italy prices and yields situation of BTP during sovereign debt crisis of 2011.
