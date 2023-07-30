@@ -1,6 +1,8 @@
 # Italian BTP analysis in PIIGS scenario 
 
-Compelling analysis about BTP italian bonds in the sovereign debt crisis of 2011.
+In this repository you will find a compelling analysis about BTP italian bonds in the sovereign debt crisis of 2011.
+There are Rmd code and HTML report attached.
+Data are taken from Kaggle and are in the form of time series from 2012 to 2020.
 
 <img src="https://github.com/giuseppedipoce/Italian-BTP-analysis-in-PIIGS-scenario/assets/114066138/85dc00a7-df95-48ee-9eb0-6542c8ab8c13" width=55% height=55% align="right">
 
@@ -15,7 +17,7 @@ The project is divided in sections, analyzing in the specific just the italain s
 
 ## Comments about results
 The aim of this work from a bayesian point of view is to highlight the fact that GARCH models are not suitable to model residuals that do not follow a standard normal distribuition.
-In this repo you will find a t-Student alternative approach to avoid the problem.
+In this repo you will find a t-Student alternative approach to avoid this problem.
 Don't esitate to get in touch for clarifications and collaboration about it.
 
 ## Used technologies
