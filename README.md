@@ -15,12 +15,18 @@ The project is divided in sections, analyzing in the specific just the italian s
 - Prices Returns *VOLATILITY* analysis witth GARCH moldes;
 - Frequentist brief comparison and forecating.
 
+![image](https://github.com/giuseppedipoce/Italian-BTP-analysis-in-PIIGS-scenario/assets/114066138/c5a29c42-146c-4ba1-a54c-b0319a86e367)
+
 ## Comments about results
 The aim of this work from a bayesian point of view is to highlight the fact that *GARCH* models are not suitable to model residuals that do not follow a standard normal distribuition.
 In this repo you will find a t-Student alternative approach to avoid this problem.
-Thhe main idea is that in a GARCH(1,1) model:
-
+The main idea is that in a GARCH model volatility of current time $t$ ($y_t$) is modeled as:
 $y_t=c+\epsilon_t=c+\sqrt{\sigma_t^2} z_t, \quad z_t \sim N(0,1)$
+where residuals $z_t$ are normally distribuited.
+![image](https://github.com/giuseppedipoce/Italian-BTP-analysis-in-PIIGS-scenario/assets/114066138/035a2d97-2e9d-44b9-b3ab-3dd92e27ade3)
+As you can notice from the qq-plot above tails of $z_t$ are far from a normal distribution.
+Here we will apply a t-Student distribution to model residuals with a given number od degree fo freedoms.
+
 
 Don't esitate to get in touch for clarifications and collaboration about it.
 
