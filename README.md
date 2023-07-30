@@ -13,7 +13,7 @@ The project is divided in sections, analyzing in the specific just the italian s
 - Prices Returns *VOLATILITY* analysis witth GARCH moldes;
 - Frequentist brief comparison and forecasting.
 
-## Normals vs t-Student
+## *Normals* vs *t-Student*
 The aim of this work from a bayesian point of view is to highlight the fact that *GARCH* models are not suitable to model residuals that do not follow a standard normal distribuition.
 In this repo you will find a t-Student alternative approach to avoid this problem.
 The main idea is that in a GARCH model volatility of current time $t$ ($y_t$) is modeled as:
