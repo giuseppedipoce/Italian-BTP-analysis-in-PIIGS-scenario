@@ -1,7 +1,8 @@
 # Italian BTP analysis in PIIGS scenario 
 
 Compelling analysis about BTP italian bonds in the sovereign debt crisis of 2011.
-![piigs](https://github.com/giuseppedipoce/Italian-BTP-analysis-in-PIIGS-scenario/assets/114066138/85dc00a7-df95-48ee-9eb0-6542c8ab8c13)
+![piigs](https://github.com/giuseppedipoce/Italian-BTP-analysis-in-PIIGS-scenario/assets/114066138/85dc00a7-df95-48ee-9eb0-6542c8ab8c13)\
+
 
 ## The project in a nutshell:
 
@@ -12,7 +13,7 @@ The project is divided in sections, analyzing in the specific just the italain s
 - Prices Returns VOLATILITY analysis witth GARCH moldes;
 - Frequentist brief comparison and forecating.
 
-## Results
+## Comments about results
 The aim of this work from a bayesian point of view is to highlight the fact that GARCH models are not suitable to model residuals that do not follow a standard normal distribuition.
 In this repo you will find a t-Student alternative approach to avoid the problem.
 Don't esitate to get in touch for clarifications and collaboration about it.
