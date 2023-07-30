@@ -13,8 +13,6 @@ The project is divided in sections, analyzing in the specific just the italian s
 - Prices Returns *VOLATILITY* analysis witth GARCH moldes;
 - Frequentist brief comparison and forecating.
 
-<img src="https://github.com/giuseppedipoce/Italian-BTP-analysis-in-PIIGS-scenario/assets/114066138/c5a29c42-146c-4ba1-a54c-b0319a86e367" width=50% height=50% align="right">
-
 ## Comments about results
 The aim of this work from a bayesian point of view is to highlight the fact that *GARCH* models are not suitable to model residuals that do not follow a standard normal distribuition.
 In this repo you will find a t-Student alternative approach to avoid this problem.
