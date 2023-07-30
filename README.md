@@ -1,8 +1,8 @@
 # Italian BTP analysis in PIIGS scenario 
 
-Compelling analysis about BTP italian bonds in the sovereign debt crisis of 2011.\
+Compelling analysis about BTP italian bonds in the sovereign debt crisis of 2011.
 
-![piigs](https://github.com/giuseppedipoce/Italian-BTP-analysis-in-PIIGS-scenario/assets/114066138/85dc00a7-df95-48ee-9eb0-6542c8ab8c13)\
+$$![piigs](https://github.com/giuseppedipoce/Italian-BTP-analysis-in-PIIGS-scenario/assets/114066138/85dc00a7-df95-48ee-9eb0-6542c8ab8c13)$$
 
 
 ## The project in a nutshell:
